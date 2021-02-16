@@ -41,7 +41,7 @@ namespace Microsoft.EntityFrameworkCore
             where TAutoHistory : AutoHistory
         {
             var history = createHistoryFactory();
-            history.TableName = entry.Metadata.Relational().TableName;
+            history.TableName = entry.Metadata.GetTableName();
 
             // Get the mapped properties for the entity type.
             // (include shadow properties, not include navigations & references)
@@ -73,19 +73,21 @@ namespace Microsoft.EntityFrameworkCore
                     var bef = new JObject();
                     var aft = new JObject();
 
+                    PropertyValues databaseValues = null;
                     foreach (var prop in properties)
                     {
                         if (prop.IsModified)
                         {
                             if (prop.OriginalValue != null)
                             {
-                                if (prop.OriginalValue != prop.CurrentValue)
+                                if (!prop.OriginalValue.Equals(prop.CurrentValue))
                                 {
                                     bef[prop.Metadata.Name] = JToken.FromObject(prop.OriginalValue, jsonSerializer);
                                 }
                                 else
                                 {
-                                    var originalValue = entry.GetDatabaseValues().GetValue<object>(prop.Metadata.Name);
+                                    databaseValues = databaseValues ?? entry.GetDatabaseValues();
+                                    var originalValue = databaseValues.GetValue<object>(prop.Metadata.Name);
                                     bef[prop.Metadata.Name] = originalValue != null
                                         ? JToken.FromObject(originalValue, jsonSerializer)
                                         : JValue.CreateNull();
